@@ -82,6 +82,20 @@ const generateRandomImages = () => {
   return imgs;
 };
 
+// Check if two rectangles overlap with padding
+const isOverlapping = (
+  rect1: { x: number; y: number; width: number; height: number },
+  rect2: { x: number; y: number; width: number; height: number },
+  padding: number = 20
+) => {
+  return !(
+    rect1.x + rect1.width + padding < rect2.x ||
+    rect2.x + rect2.width + padding < rect1.x ||
+    rect1.y + rect1.height + padding < rect2.y ||
+    rect2.y + rect2.height + padding < rect1.y
+  );
+};
+
 export default function App() {
   const [seqNum, setSeqNum] = useState(0);
   const [height, setHeight] = useState(48);
@@ -94,15 +108,98 @@ export default function App() {
   const [randomImages] = useState(() => generateRandomImages());
 
   const handleNoClick = (e: React.MouseEvent) => {
-    setWidth(width + 20);
-    setHeight(height + 5);
+    setWidth(width + 30);
+    setHeight(height + 6);
     const newSeq = seqNum + 1;
     setSeqNum(newSeq);
 
     if (newSeq >= 2 && newSeq <= 9) {
-      const offsetX = Math.random() > 0.5 ? Math.random() * 300 + 100 : -(Math.random() * 300 + 100);
-      const offsetY = Math.random() > 0.5 ? Math.random() * 200 + 100 : -(Math.random() * 200 + 100);
-      setButtonPos({ x: offsetX, y: offsetY });
+      // Get viewport dimensions
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+
+      // Define safe zones (center image, yes button, tongue image if shown)
+      const safeZones = [
+        // Center image area - larger safe zone
+        { 
+          x: viewportWidth / 2 - 200, 
+          y: viewportHeight / 2 - 250, 
+          width: 400, 
+          height: 400 
+        },
+        // Yes button area
+        { 
+          x: viewportWidth / 2 - 200, 
+          y: viewportHeight / 2 + 180, 
+          width: width + 100, 
+          height: height + 40 
+        },
+      ];
+
+      // Add tongue image to safe zones if it's showing
+      if (showImage) {
+        safeZones.push({
+          x: imagePos.x - 80,
+          y: imagePos.y - 80,
+          width: 160,
+          height: 160
+        });
+      }
+
+      let newOffsetX, newOffsetY;
+      let attempts = 0;
+      let validPosition = false;
+
+      // Get button's current position in viewport
+      const buttonRect = (e.target as HTMLElement).getBoundingClientRect();
+      const buttonAbsoluteX = buttonRect.left + window.scrollX;
+      const buttonAbsoluteY = buttonRect.top + window.scrollY;
+
+      // Try to find a position that doesn't overlap with safe zones
+      while (!validPosition && attempts < 100) {
+        // Generate larger offsets to ensure button moves far away
+        const offsetDistance = 250 + Math.random() * 200;
+        const angle = Math.random() * Math.PI * 2;
+        newOffsetX = Math.cos(angle) * offsetDistance;
+        newOffsetY = Math.sin(angle) * offsetDistance;
+
+        // Calculate new button position in absolute coordinates
+        const newButtonX = buttonAbsoluteX + newOffsetX;
+        const newButtonY = buttonAbsoluteY + newOffsetY;
+
+        const newButtonRect = {
+          x: newButtonX,
+          y: newButtonY,
+          width: 120,
+          height: 60
+        };
+
+        // Check if position is within viewport bounds
+        const inBounds = 
+          newButtonX > 50 && 
+          newButtonX + 120 < viewportWidth - 50 &&
+          newButtonY > 50 && 
+          newButtonY + 60 < viewportHeight - 50;
+
+        // Check if new position overlaps with any safe zone
+        validPosition = inBounds && !safeZones.some(zone => isOverlapping(newButtonRect, zone, 30));
+        attempts++;
+      }
+
+      // If we found a valid position, use it; otherwise move to a corner
+      if (validPosition && newOffsetX !== undefined && newOffsetY !== undefined) {
+        setButtonPos({ x: newOffsetX, y: newOffsetY });
+      } else {
+        // Fallback: move to corners or edges
+        const corners = [
+          { x: -buttonAbsoluteX + 100, y: -buttonAbsoluteY + 100 }, // top-left
+          { x: viewportWidth - buttonAbsoluteX - 200, y: -buttonAbsoluteY + 100 }, // top-right
+          { x: -buttonAbsoluteX + 100, y: viewportHeight - buttonAbsoluteY - 150 }, // bottom-left
+          { x: viewportWidth - buttonAbsoluteX - 200, y: viewportHeight - buttonAbsoluteY - 150 }, // bottom-right
+        ];
+        const randomCorner = corners[Math.floor(Math.random() * corners.length)];
+        setButtonPos(randomCorner);
+      }
     }
 
     if (newSeq === 6) {
@@ -226,12 +323,12 @@ export default function App() {
           >
             {noText[seqNum]}
           </button>
-          <button 
+          {/* <button 
             className="bg-blue-500 hover:bg-blue-600 text-white font-semibold px-8 py-3 rounded-lg shadow-md transition-colors hover:cursor-pointer" 
             onClick={() => { setWidth(100); setHeight(48); setSeqNum(0); setShowImage(false); setButtonPos({ x: 0, y: 0 }); }}
           >
             reset
-          </button>
+          </button> */}
         </div>
         
         {seqNum === 2 && (
