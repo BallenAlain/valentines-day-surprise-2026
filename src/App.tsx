@@ -28,7 +28,7 @@ const noText = [
   'No',
   'Are you sure?',
   'MEANIE',
-  'You missed!',
+  'ur stinky',
   ':P',
   'STOOPID NOT ALLOWED',
   'STOOPID YOU GOT VIRUS 🦠',
